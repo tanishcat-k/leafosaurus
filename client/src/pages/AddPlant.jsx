@@ -11,6 +11,7 @@ function AddPlant() {
   const [results, setResults] = useState([]);   // species list from search
   const [matches, setMatches] = useState([]);   // results from photo identify
   const [identifying, setIdentifying] = useState(false);
+  const [lookingUp, setLookingUp] = useState('');   // scientific name being fetched
   const [demoNote, setDemoNote] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [species, setSpecies] = useState(null); // the chosen species
@@ -46,6 +47,28 @@ function AddPlant() {
     setIdentifying(false);
   };
 
+  // when a result is clicked: use saved care info, or fetch it first
+  const handlePickMatch = async (m) => {
+    setError('');
+
+    if (m.species) {
+      setSpecies(m.species);
+      return;
+    }
+
+    setLookingUp(m.scientificName);
+    try {
+      const res = await api.post('/species/lookup', {
+        scientificName: m.scientificName,
+        commonName: m.commonName,
+      });
+      setSpecies(res.data);
+    } catch (err) {
+      setError(errorText(err));
+    }
+    setLookingUp('');
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setError('');
@@ -69,6 +92,9 @@ function AddPlant() {
       <form className="card form" onSubmit={handleSave}>
         <h2>Name your {species.commonName}</h2>
         <p className="small">Water every {species.wateringDays} days · {species.light}</p>
+        {species.source === 'generic' && (
+          <p className="small">We don't have detailed care info for this one yet, so we'll use general care tips.</p>
+        )}
 
         <input placeholder="Nickname (e.g. Gerald)" value={nickname} onChange={(e) => setNickname(e.target.value)} required />
 
@@ -123,12 +149,12 @@ function AddPlant() {
               <button
                 key={i}
                 className="list-item"
-                disabled={!m.species}
-                onClick={() => setSpecies(m.species)}
+                disabled={lookingUp !== ''}
+                onClick={() => handlePickMatch(m)}
               >
                 <span className="sticker">{Math.round(m.score * 100)}% sure</span>
                 {m.commonName} <small>{m.scientificName}</small>
-                {!m.species && <small> (no care info yet)</small>}
+                {lookingUp === m.scientificName && <small> (fetching care info...)</small>}
               </button>
             ))}
           </div>

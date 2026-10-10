@@ -2,13 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import Species from '../models/Species.js';
 
-// tries to find our own Species entry for a name that the API gave us
-const findInOurDb = async (scientificName, commonName) => {
-  let found = await Species.findOne({ scientificName: new RegExp(`^${scientificName}$`, 'i') });
-  if (!found && commonName) {
-    found = await Species.findOne({ $or: [{ commonName: new RegExp(commonName, 'i') }, { otherNames: new RegExp(commonName, 'i') }] });
-  }
-  return found;
+// looks for a saved species with the same scientific name
+const findInOurDb = async (scientificName) => {
+  return await Species.findOne({ scientificName: new RegExp(`^${scientificName}$`, 'i') });
 };
 
 // POST /api/identify   (form-data, field name: image)
@@ -49,7 +45,7 @@ export const identifyPlant = async (req, res, next) => {
     for (const r of data.results.slice(0, 3)) {
       const sciName = r.species.scientificNameWithoutAuthor;
       const commonName = r.species.commonNames && r.species.commonNames[0];
-      const species = await findInOurDb(sciName, commonName);
+      const species = await findInOurDb(sciName);   // null if we don't have it yet
       matches.push({ scientificName: sciName, commonName: commonName || sciName, score: r.score, species });
     }
 

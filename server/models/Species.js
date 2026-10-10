@@ -15,6 +15,9 @@ const speciesSchema = new mongoose.Schema({
       fix: String,
     },
   ],
+  // where did this entry come from? our seed file, perenual api, or a generic fallback
+  source: { type: String, enum: ['seed', 'perenual', 'generic'], default: 'seed' },
+  perenualId: Number,
 });
 
 export default mongoose.model('Species', speciesSchema);
