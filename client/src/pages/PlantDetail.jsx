@@ -11,6 +11,7 @@ function PlantDetail() {
   const [logs, setLogs] = useState([]);
   const [checkins, setCheckins] = useState([]);
   const [error, setError] = useState('');
+  const [watering, setWatering] = useState(false);
 
   // RENAME
   const [editing, setEditing] = useState(false);
@@ -59,8 +60,30 @@ function PlantDetail() {
   };
 
   const handleWater = async () => {
-    await api.post(`/plants/${id}/water`);
-    loadPlant();
+    // not thirsty yet? ask first, in case it was a mistake
+    if (daysUntilWater(plant.nextWatering) > 0) {
+      if (!window.confirm("This plant isn't due for water yet. Water it anyway?")) return;
+    }
+  
+    setWatering(true);   // disables the button until the request finishes
+    setError('');
+    try {
+      await api.post(`/plants/${id}/water`);
+      loadPlant();
+    } catch (err) {
+      setError(errorText(err));
+    }
+    setWatering(false);
+  };
+  
+  const handleUndo = async () => {
+    setError('');
+    try {
+      await api.delete(`/plants/${id}/water`);
+      loadPlant();
+    } catch (err) {
+      setError(errorText(err));
+    }
   };
 
   const handleAddNote = async (e) => {
@@ -135,7 +158,7 @@ function PlantDetail() {
           <p className={days <= 0 ? 'thirsty' : 'ok'}>
             {days <= 0 ? 'Thirsty! Needs water' : `Water in ${days} day${days === 1 ? '' : 's'}`}
           </p>
-          <button className="btn small-btn" onClick={handleWater}>Water now</button>
+          <button className="btn small-btn" onClick={handleWater} disabled={watering}> {watering ? 'Watering...' : 'Water now'} </button> {logs.some((l) => l.type === 'water') && ( <button className="link-btn" onClick={handleUndo}>Undo last watering</button> )}
         </div>
       </div>
 

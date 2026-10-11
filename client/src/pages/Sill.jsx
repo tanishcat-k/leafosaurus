@@ -18,9 +18,16 @@ function Sill() {
 
   useEffect(loadPlants, []);
 
-  const handleWater = async (id) => {
-    await api.post(`/plants/${id}/water`);
-    loadPlants();
+  const handleWater = async (plant) => {
+    if (daysUntilWater(plant.nextWatering) > 0) {
+      if (!window.confirm(`${plant.nickname} isn't due for water yet. Water it anyway?`)) return;
+    }
+    try {
+      await api.post(`/plants/${plant._id}/water`);
+      loadPlants();
+    } catch (err) {
+      console.log(err.response?.data?.message);   // e.g. already watered a moment ago
+    }
   };
 
   if (loading) return <p>Loading your sill...</p>;
@@ -63,7 +70,7 @@ function Sill() {
               </p>
 
               <div className="row">
-                <button className="btn small-btn" onClick={() => handleWater(p._id)}>Water</button>
+              <button className="btn small-btn" onClick={() => handleWater(p)}>Water</button>
                 <Link to={`/plant/${p._id}`} className="link-btn">Open</Link>
               </div>
             </div>

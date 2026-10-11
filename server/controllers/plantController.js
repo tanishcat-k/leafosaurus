@@ -60,9 +60,36 @@ export const waterPlant = async (req, res, next) => {
     const plant = await Plant.findOne({ _id: req.params.id, user: req.userId });
     if (!plant) return res.status(404).json({ message: 'Plant not found' });
 
+    // stop accidental double clicks: was it watered in the last minute?
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const recent = await Log.findOne({ plant: plant._id, type: 'water', createdAt: { $gt: oneMinuteAgo } });
+    if (recent) return res.status(409).json({ message: 'Already watered a moment ago' });
+
     plant.lastWatered = new Date();
     await plant.save();
     await Log.create({ plant: plant._id, user: req.userId, type: 'water', note: 'Watered' });
+
+    res.json(plant);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// DELETE /api/plants/:id/water  -> undo the latest watering
+export const undoWater = async (req, res, next) => {
+  try {
+    const plant = await Plant.findOne({ _id: req.params.id, user: req.userId });
+    if (!plant) return res.status(404).json({ message: 'Plant not found' });
+
+    // find and remove the most recent watering entry
+    const last = await Log.findOne({ plant: plant._id, type: 'water' }).sort({ createdAt: -1 });
+    if (!last) return res.status(400).json({ message: 'No watering to undo' });
+    await Log.deleteOne({ _id: last._id });
+
+    // go back to the watering before it (or the day the plant was added)
+    const before = await Log.findOne({ plant: plant._id, type: 'water' }).sort({ createdAt: -1 });
+    plant.lastWatered = before ? before.createdAt : plant.createdAt;
+    await plant.save();
 
     res.json(plant);
   } catch (err) {
