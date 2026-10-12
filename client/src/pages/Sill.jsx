@@ -4,6 +4,8 @@ import api from '../api.js';
 import PlantWindow from '../components/PlantWindow.jsx';
 import { daysUntilWater } from '../utils/helpers.js';
 
+const DAY = 24 * 60 * 60 * 1000;
+
 function Sill() {
   const [plants, setPlants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,12 @@ function Sill() {
     );
   }
 
+  // plants that need water today (or are overdue)
+  const thirsty = plants.filter((p) => daysUntilWater(p.nextWatering) <= 0);
+
+  // plants with no check-in for 14 days (counting from when they were added)
+  const needCheckIn = plants.filter((p) => Date.now() - new Date(p.lastCheckIn || p.createdAt) > 14 * DAY);
+
   // the window only has space for 3 plants
   const windowItems = plants.slice(0, 3).map((p) => ({
     id: p._id,
@@ -50,8 +58,24 @@ function Sill() {
     label: p.nickname,
   }));
 
+  // list of plant names, each one links to its page
+  const nameLinks = (list) =>
+    list.map((p, i) => (
+      <span key={p._id}>
+        <Link to={`/plant/${p._id}`}>{p.nickname}</Link>
+        {i < list.length - 1 ? ', ' : ''}
+      </span>
+    ));
+
   return (
     <div>
+      {(thirsty.length > 0 || needCheckIn.length > 0) && (
+        <div className="card banner">
+          {thirsty.length > 0 && <p>💧 <b>Needs water:</b> {nameLinks(thirsty)}</p>}
+          {needCheckIn.length > 0 && <p>🩺 <b>Time for a check-in:</b> {nameLinks(needCheckIn)}</p>}
+        </div>
+      )}
+
       <div className="sill-top">
         <PlantWindow items={windowItems} />
       </div>
@@ -70,7 +94,7 @@ function Sill() {
               </p>
 
               <div className="row">
-              <button className="btn small-btn" onClick={() => handleWater(p)}>Water</button>
+                <button className="btn small-btn" onClick={() => handleWater(p)}>Water</button>
                 <Link to={`/plant/${p._id}`} className="link-btn">Open</Link>
               </div>
             </div>

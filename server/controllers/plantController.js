@@ -7,7 +7,17 @@ import Species from '../models/Species.js';
 export const getPlants = async (req, res, next) => {
   try {
     const plants = await Plant.find({ user: req.userId }).populate('species').sort({ createdAt: -1 });
-    res.json(plants);
+
+    // latest check-in date for each plant (checkins are sorted newest first)
+    const checkins = await CheckIn.find({ user: req.userId }).sort({ createdAt: -1 }).select('plant createdAt');
+    const lastCheckIn = {};
+    checkins.forEach((c) => {
+      const key = c.plant.toString();
+      if (!lastCheckIn[key]) lastCheckIn[key] = c.createdAt;   // first one we see is the newest
+    });
+
+    const result = plants.map((p) => ({ ...p.toJSON(), lastCheckIn: lastCheckIn[p._id.toString()] }));
+    res.json(result);
   } catch (err) {
     next(err);
   }
