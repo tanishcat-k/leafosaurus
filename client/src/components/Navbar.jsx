@@ -15,7 +15,7 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link to="/" className="logo">
+      <Link to={user ? '/sill' : '/'} className="logo">
         <Logo />
         Leafosaurus
       </Link>

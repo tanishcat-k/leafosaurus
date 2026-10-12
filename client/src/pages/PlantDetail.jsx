@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api.js';
 import { daysUntilWater, formatDate, errorText, SYMPTOMS } from '../utils/helpers.js';
 
@@ -136,6 +136,7 @@ function PlantDetail() {
 
   return (
     <div>
+      <Link to="/sill" className="back">← Back to my sill</Link>
       <div className="detail-top">
         {plant.photo ? <img className="big-photo" src={plant.photo} alt={plant.nickname} /> : <div className="big-photo emoji">{species?.emoji || '🪴'}</div>}
         <div>
