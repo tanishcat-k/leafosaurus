@@ -70,6 +70,25 @@ export const waterPlant = async (req, res, next) => {
   }
 };
 
+// PATCH /api/plants/:id   body: { nickname }
+export const updatePlant = async (req, res, next) => {
+  try {
+    const nickname = (req.body.nickname || '').trim();
+    if (!nickname) return res.status(400).json({ message: 'Nickname cannot be empty' });
+
+    const plant = await Plant.findOneAndUpdate(
+      { _id: req.params.id, user: req.userId },   // user check so nobody can rename someone else's plant
+      { nickname },
+      { new: true }
+    );
+    if (!plant) return res.status(404).json({ message: 'Plant not found' });
+
+    res.json(plant);
+  } catch (err) {
+    next(err);
+  }
+};
+
 // POST /api/plants/:id/logs  (note and/or growth photo)
 export const addLog = async (req, res, next) => {
   try {
