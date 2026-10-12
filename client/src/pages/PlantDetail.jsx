@@ -12,7 +12,7 @@ function PlantDetail() {
   const [checkins, setCheckins] = useState([]);
   const [error, setError] = useState('');
   const [watering, setWatering] = useState(false);
-
+  const [notePhoto, setNotePhoto] = useState(null);
   // RENAME
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState('');
@@ -88,10 +88,21 @@ function PlantDetail() {
 
   const handleAddNote = async (e) => {
     e.preventDefault();
-    if (!note.trim()) return;
-    await api.post(`/plants/${id}/logs`, { note });
-    setNote('');
-    loadPlant();
+    if (!note.trim() && !notePhoto) return;   // need a note or a photo
+  
+    // FormData because we may send a file (JSON can't carry files)
+    const data = new FormData();
+    data.append('note', note);
+    if (notePhoto) data.append('photo', notePhoto);
+  
+    try {
+      await api.post(`/plants/${id}/logs`, data);
+      setNote('');
+      setNotePhoto(null);
+      loadPlant();
+    } catch (err) {
+      setError(errorText(err));
+    }
   };
 
   const toggleSymptom = (s) => {
@@ -203,8 +214,12 @@ function PlantDetail() {
 
       <h2>The sill diary</h2>
       <form className="row" onSubmit={handleAddNote}>
-        <input placeholder="Write a note (new leaf, repotted...)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button className="btn small-btn">Add</button>
+      <input placeholder="Write a note (new leaf, repotted...)" value={note} onChange={(e) => setNote(e.target.value)} />
+      <label className="link-btn">
+        {notePhoto ? ` ${notePhoto.name}` : 'Add photo'}
+        <input type="file" accept="image/*" onChange={(e) => setNotePhoto(e.target.files[0])} hidden />
+      </label>
+      <button className="btn small-btn">Add</button>
       </form>
 
       <div className="diary">
