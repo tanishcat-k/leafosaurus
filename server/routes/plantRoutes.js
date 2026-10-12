@@ -1,8 +1,8 @@
 import express from 'express';
 import protect from '../middleware/auth.js';
-import upload from '../middleware/upload.js';
+import upload, { uploadToCloud } from '../middleware/upload.js';
 import {
-  getPlants, addPlant, getPlant, updatePlant, waterPlant,undoWater, addLog, addCheckIn, deletePlant,
+  getPlants, addPlant, getPlant, updatePlant, waterPlant, undoWater, addLog, addCheckIn, deletePlant,
 } from '../controllers/plantController.js';
 
 const router = express.Router();
@@ -10,13 +10,13 @@ const router = express.Router();
 router.use(protect);   // every plant route needs login
 
 router.get('/', getPlants);
-router.post('/', upload.single('photo'), addPlant);
+router.post('/', upload.single('photo'), uploadToCloud, addPlant);
 router.get('/:id', getPlant);
 router.patch('/:id', updatePlant);
 router.delete('/:id', deletePlant);
 router.post('/:id/water', waterPlant);
 router.delete('/:id/water', undoWater);
-router.post('/:id/logs', upload.single('photo'), addLog);
-router.post('/:id/checkins', upload.single('photo'), addCheckIn);
+router.post('/:id/logs', upload.single('photo'), uploadToCloud, addLog);
+router.post('/:id/checkins', upload.single('photo'), uploadToCloud, addCheckIn);
 
 export default router;

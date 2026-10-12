@@ -1,7 +1,5 @@
-import fs from 'fs';
-import path from 'path';
 import Species from '../models/Species.js';
-
+import sharp from 'sharp';
 // looks for a saved species with the same scientific name
 const findInOurDb = async (scientificName) => {
   return await Species.findOne({ scientificName: new RegExp(`^${scientificName}$`, 'i') });
@@ -25,8 +23,19 @@ export const identifyPlant = async (req, res, next) => {
 
     // send the photo to Pl@ntNet
     const form = new FormData();
-    const fileData = fs.readFileSync(req.file.path);
-    form.append('images', new Blob([fileData], { type: req.file.mimetype }), path.basename(req.file.path));
+    // Pl@ntNet only accepts jpeg or png, so convert whatever we got into a jpeg
+    let jpegBuffer;
+    try {
+      jpegBuffer = await sharp(req.file.buffer)
+        .rotate()                                              // fixes sideways phone photos
+        .resize({ width: 1600, withoutEnlargement: true })     // big photos are slow to upload
+        .jpeg({ quality: 85 })
+        .toBuffer();
+    } catch (err) {
+      console.log('Could not convert image:', req.file.mimetype, err.message);
+      return res.status(400).json({ message: 'We could not read that photo. Please use a JPEG or PNG image.' });
+    }
+    form.append('images', new Blob([jpegBuffer], { type: 'image/jpeg' }), 'plant.jpg');
     form.append('organs', 'auto');
 
     const url = `https://my-api.plantnet.org/v2/identify/all?api-key=${apiKey}&nb-results=3`;
@@ -36,6 +45,8 @@ export const identifyPlant = async (req, res, next) => {
       return res.json({ matches: [] });   // plantnet uses 404 when nothing was found
     }
     if (!response.ok) {
+      const errorText = await response.text();
+      console.log('PlantNet error:', response.status, errorText);
       return res.status(502).json({ message: 'Plant identification service is not working right now' });
     }
 

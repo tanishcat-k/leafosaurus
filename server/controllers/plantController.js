@@ -40,7 +40,7 @@ export const addPlant = async (req, res, next) => {
       species: speciesId || undefined,
       nickname,
       wateringDays,
-      photo: req.file ? '/uploads/' + req.file.filename : undefined,
+      photo: req.file ? req.file.url : undefined,
     });
 
     res.status(201).json(plant);
@@ -140,7 +140,7 @@ export const addLog = async (req, res, next) => {
       user: req.userId,
       type: req.file ? 'photo' : 'note',
       note,
-      photo: req.file ? '/uploads/' + req.file.filename : undefined,
+      photo: req.file ? req.file.url : undefined,
     });
 
     res.status(201).json(log);
@@ -161,7 +161,7 @@ export const addCheckIn = async (req, res, next) => {
     const checkin = await CheckIn.create({
       plant: plant._id,
       user: req.userId,
-      photo: req.file ? '/uploads/' + req.file.filename : undefined,
+      photo: req.file ? req.file.url : undefined,
       symptoms,
       notes: req.body.notes,
       status: symptoms.length > 0 ? 'needs-attention' : 'healthy',
