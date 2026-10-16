@@ -1,9 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import plantRoutes from './routes/plantRoutes.js';
@@ -11,21 +9,39 @@ import speciesRoutes from './routes/speciesRoutes.js';
 import identifyRoutes from './routes/identifyRoutes.js';
 import { startReminderJob } from './jobs/reminders.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-// make sure uploads folder exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+// render (and most hosts) put a proxy in front of our server,
+// this makes the rate limiter see the real user IP
+app.set('trust proxy', 1);
 
-app.use(cors());
+// only our own frontend is allowed to call this api
+app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
 app.use(express.json());
-app.use('/uploads', express.static(uploadDir));
 
-app.use('/api/auth', authRoutes);
+// limit login attempts (stops password guessing)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many attempts, please try again in a few minutes' },
+});
+
+// limit the routes that use up our api quotas (plantnet, perenual)
+const quotaLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'You have used too many identifications this hour, please try later' },
+});
+
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/plants', plantRoutes);
+app.use('/api/species/lookup', quotaLimiter);   // runs first for this path, then the species router
 app.use('/api/species', speciesRoutes);
-app.use('/api/identify', identifyRoutes);
+app.use('/api/identify', quotaLimiter, identifyRoutes);
 
 app.get('/', (req, res) => res.send('Leafosaurus API is running'));
 
@@ -35,7 +51,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ message: err.message || 'Something went wrong' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
